@@ -12,8 +12,8 @@ services:
     plan: starter
     buildCommand: npm ci && npm run build
     startCommand: npm start
-    healthCheckPath: /api/telegram/webhook
-    postDeployCommand: npm run setup:webhook
+    healthCheckPath: /api/health
+    postDeployCommand: node scripts/setup-webhook.mjs
     disk:
       name: biznes-data
       mountPath: /var/data

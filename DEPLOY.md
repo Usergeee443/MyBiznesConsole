@@ -30,11 +30,12 @@ Blueprint yaratishda so'raladi (yoki **Environment** bo'limida):
 
 ## 4. Telegram webhook
 
-Deploy tugagach `postDeployCommand` webhook ni o'rnatadi.
+Deploy tugagach `postDeployCommand` webhook ni avtomatik o'rnatadi.
 
 Qo'lda tekshirish:
 ```
 https://SIZNING-SERVIS.onrender.com/api/telegram/setup
+https://SIZNING-SERVIS.onrender.com/api/health
 ```
 
 ## 5. Tayyor
