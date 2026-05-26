@@ -1,0 +1,35 @@
+# Render Blueprint — MyBiznes Console
+# https://render.com/docs/blueprint-spec
+#
+# Deploy: Render Dashboard → New → Blueprint → Connect Git repo
+# Keyin Environment da TELEGRAM_* o'zgaruvchilarni kiriting (sync: false)
+
+services:
+  - type: web
+    name: mybiznes-console
+    runtime: node
+    region: frankfurt
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/telegram/webhook
+    postDeployCommand: npm run setup:webhook
+    disk:
+      name: biznes-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: DATABASE_PATH
+        value: /var/data/biznes.db
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_OWNER_ID
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: NPM_CONFIG_BUILD_FROM_SOURCE
+        value: "true"
