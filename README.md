@@ -47,10 +47,10 @@ Botda `/start` yuboring — barcha funksiyalar tugmalar orqali ishlaydi.
 Batafsil qo'llanma: **[DEPLOY.md](./DEPLOY.md)** — Web Service (Blueprint shart emas)
 
 ```bash
-# Render Dashboard → New → Web Service → GitHub repo
+# Render Dashboard → New → Web Service → Free plan
 # Build: npm ci && npm run build
 # Start: npm start
-# Disk: /var/data → DATABASE_PATH=/var/data/biznes.db
+# DB: data/biznes.db (disk kerak emas)
 ```
 
 ## Bo'limlar

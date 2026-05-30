@@ -1,158 +1,103 @@
-# Render Web Service — deploy qo'llanmasi
+# Render Web Service — deploy qo'llanmasi (bepul, disk siz)
 
-Blueprint kerak emas. Quyidagi qadamlarni Render Dashboard da bajaring.
+Ma'lumotlar loyiha ichidagi `data/biznes.db` da saqlanadi — **qo'shimcha disk kerak emas**.
+
+> **Eslatma:** Render bepul rejimida redeploy yoki uzoq vaqt ishlmasa ma'lumotlar yo'qolishi mumkin. Keyinroq pullik disk qo'shish mumkin.
 
 ---
 
 ## 1. GitHub ga yuklash
 
 ```bash
-cd /Users/nurmuhammad/Desktop/mybiznesconsole
 git add .
-git commit -m "Render Web Service deploy"
+git commit -m "Render deploy — disk siz"
 git push origin main
 ```
 
-> `.env` fayl GitHub ga **kirmasligi** kerak (`.gitignore` da bor).
-
 ---
 
-## 2. Render da Web Service yaratish
+## 2. Render da Web Service
 
 1. [dashboard.render.com](https://dashboard.render.com) → **New +** → **Web Service**
-2. GitHub repongizni ulang → `mybiznesconsole` ni tanlang
-3. Quyidagi sozlamalarni kiriting:
+2. GitHub repongizni ulang
+3. Sozlamalar:
 
 | Maydon | Qiymat |
 |--------|--------|
 | **Name** | `mybiznes-console` |
-| **Region** | Frankfurt (yoki yaqin) |
-| **Branch** | `main` |
+| **Region** | Frankfurt |
 | **Runtime** | Node |
+| **Instance Type** | **Free** |
 | **Build Command** | `npm ci && npm run build` |
 | **Start Command** | `npm start` |
-| **Instance Type** | **Starter** (disk uchun kerak) |
+| **Health Check Path** | `/api/health` |
 
-4. **Advanced** → **Health Check Path**: `/api/health`
-
-5. **Create Web Service** — hali deploy qilmang, avval disk va env qo'shing.
+**Disk qo'shmang** — kerak emas.
 
 ---
 
-## 3. Doimiy disk (SQLite uchun)
-
-Servis yaratilgach:
-
-1. Chap menyu → **Disks** → **Add Disk**
-2. Sozlamalar:
-
-| Maydon | Qiymat |
-|--------|--------|
-| **Name** | `biznes-data` |
-| **Mount Path** | `/var/data` |
-| **Size** | 1 GB |
-
-3. **Save** — servis qayta deploy bo'ladi.
-
----
-
-## 4. Environment Variables
-
-**Environment** bo'limiga qo'shing:
+## 3. Environment Variables
 
 | Key | Value |
 |-----|-------|
 | `NODE_ENV` | `production` |
 | `NODE_VERSION` | `20.19.0` |
-| `DATABASE_PATH` | `/var/data/biznes.db` |
 | `NPM_CONFIG_BUILD_FROM_SOURCE` | `true` |
 | `TELEGRAM_BOT_TOKEN` | BotFather token |
-| `TELEGRAM_OWNER_ID` | @userinfobot dan ID |
-| `TELEGRAM_WEBHOOK_SECRET` | Ixtiyoriy maxfiy so'z (masalan: `my_secret_abc123`) |
+| `TELEGRAM_OWNER_ID` | @userinfobot ID |
+| `TELEGRAM_WEBHOOK_SECRET` | ixtiyoriy maxfiy so'z |
 
-`RENDER_EXTERNAL_URL` Render **avtomatik** qo'yadi — qo'lda kiritish shart emas.
+**Muhim:** `DATABASE_PATH` **qo'shmang** yoki o'chiring.  
+Agar oldin `/var/data/biznes.db` qo'ygan bo'lsangiz — **o'chirib tashlang**.
 
----
-
-## 5. Deploy
-
-**Manual Deploy** → **Deploy latest commit** (yoki avtomatik boshlanadi).
-
-Birinchi build **5–15 daqiqa** davom etishi mumkin (`better-sqlite3` compile).
-
-Deploy **Live** bo'lgach URL:  
-`https://mybiznes-console.onrender.com`
+DB avtomatik: `data/biznes.db` (loyiha papkasi ichida).
 
 ---
 
-## 6. Telegram webhook
+## 4. Deploy
 
-Brauzerda oching (o'z URL ingiz bilan):
+**Manual Deploy** → **Deploy latest commit**
 
+URL: `https://mybiznes-console.onrender.com`
+
+---
+
+## 5. Telegram webhook
+
+Deploy tugagach brauzerda:
 ```
-https://mybiznes-console.onrender.com/api/telegram/setup
+https://SIZNING-SERVIS.onrender.com/api/telegram/setup
 ```
 
-Javobda `"ok": true` bo'lsa — bot tayyor.
-
-Telegramda botingizga `/start` yuboring.
+Telegramda `/start`.
 
 ---
 
-## 7. Tekshirish
+## Bepul rejim cheklovlari
 
-| URL | Kutilgan natija |
-|-----|-----------------|
-| `/api/health` | `{"ok":true,"service":"mybiznes-console"}` |
-| `/` | Bosh sahifa ochiladi |
-| `/api/telegram/setup` | Webhook o'rnatilgan |
+| Cheklov | Tushuntirish |
+|---------|--------------|
+| Uxlab qoladi | 15 daqiqa faolsizlikdan keyin to'xtaydi, birinchi so'rov sekin |
+| Ma'lumotlar | Redeploy da yangi DB (disk yo'q) |
+| Resurs | CPU/RAM cheklangan |
 
----
-
-## Xarajat
-
-- **Starter Web Service:** ~$7/oy
-- **Disk 1 GB:** ~$0.25/oy
-- **Jami:** taxminan **$7–8/oy**
-
-Renderda Node web servis uchun bepul plan yo'q.
+Keyinroq ma'lumotlarni doimiy saqlash uchun Render **Disk** ($) yoki Oracle Cloud (bepul VPS) ishlatish mumkin.
 
 ---
 
 ## Muammolar
 
-### Build xato (`mkdir '/var/data'`)
-- Sabab: build vaqtida disk hali ulanmagan; DB endi lazy init qilinadi
-- GitHub ga push qiling va qayta deploy
+### Build xato (`@tailwindcss/postcss`)
+Build paketlari `dependencies` da — push qiling va qayta deploy.
 
-### Build xato (`@tailwindcss/postcss` topilmadi)
-- Sabab: `NODE_ENV=production` bo'lganda devDependencies o'rnatilmaydi
-- Loyihada build paketlari `dependencies` ga ko'chirilgan — GitHub ga push qiling va qayta deploy
+### Build xato (`mkdir '/var/data'`)
+`DATABASE_PATH` ni Environment dan **o'chiring**. Yangi kodni push qiling.
 
 ### Build xato (`better-sqlite3`)
-- `NPM_CONFIG_BUILD_FROM_SOURCE=true` qo'shilganini tekshiring
-- `NODE_VERSION=20.19.0` bo'lsin
-
-### Sahifa ochilmaydi
-- Logs → **Deploy** tabini ko'ring
-- `npm start` Start Command da ekanini tekshiring
+`NPM_CONFIG_BUILD_FROM_SOURCE=true` va `NODE_VERSION=20.19.0`
 
 ### Bot javob bermaydi
-1. `TELEGRAM_BOT_TOKEN` va `TELEGRAM_OWNER_ID` to'g'riligini tekshiring
-2. `/api/telegram/setup` ni qayta oching
-3. Telegramda `/start`
+`/api/telegram/setup` oching, keyin `/start`
 
 ### Ma'lumotlar yo'qoladi
-- Disk mount: `/var/data`
-- `DATABASE_PATH=/var/data/biznes.db`
-- Disk **Disks** bo'limida ulangan bo'lsin
-
-### Servis uxlab qoladi (Starter)
-- Birinchi so'rov 30–60 soniya kutishi mumkin
-- Doimiy ish uchun yuqori plan yoki boshqa hosting kerak
-
----
-
-## Blueprint haqida
-
-Repoda `render.yaml` bor — **Web Service orqali deploy qilsangiz uni e'tiborsiz qoldiring**. Keyinroq Blueprint ga o'tish mumkin.
+Bepul rejimda normal — redeploy yangi DB yaratadi. Doimiy saqlash uchun keyinroq disk qo'shing.
