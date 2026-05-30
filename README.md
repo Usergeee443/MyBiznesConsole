@@ -44,11 +44,13 @@ Botda `/start` yuboring — barcha funksiyalar tugmalar orqali ishlaydi.
 
 ## Render deploy
 
-Batafsil: [DEPLOY.md](./DEPLOY.md)
+Batafsil qo'llanma: **[DEPLOY.md](./DEPLOY.md)** — Web Service (Blueprint shart emas)
 
 ```bash
-# Render Dashboard → New → Blueprint → GitHub repo
-# render.yaml avtomatik ishlaydi
+# Render Dashboard → New → Web Service → GitHub repo
+# Build: npm ci && npm run build
+# Start: npm start
+# Disk: /var/data → DATABASE_PATH=/var/data/biznes.db
 ```
 
 ## Bo'limlar
