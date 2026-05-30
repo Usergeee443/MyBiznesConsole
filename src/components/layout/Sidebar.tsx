@@ -30,7 +30,7 @@ export function Sidebar() {
     <>
       <button
         onClick={() => setOpen(!open)}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300"
+        className="fixed top-14 left-4 z-50 lg:hidden p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300"
       >
         {open ? <X size={20} /> : <Menu size={20} />}
       </button>
