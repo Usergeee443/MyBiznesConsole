@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-export { dynamic, runtime } from "@/lib/api-config";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 import {
   getArenaTopStats,
   addArenaTopStat,

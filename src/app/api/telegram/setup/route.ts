@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-export { dynamic, runtime } from "@/lib/api-config";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 import { getBotOrNull } from "@/lib/telegram/bot";
 
 /** Webhook o'rnatish: GET /api/telegram/setup?url=https://your-domain.com/api/telegram/webhook */
