@@ -121,6 +121,14 @@ Renderda Node web servis uchun bepul plan yo'q.
 
 ## Muammolar
 
+### Build xato (`mkdir '/var/data'`)
+- Sabab: build vaqtida disk hali ulanmagan; DB endi lazy init qilinadi
+- GitHub ga push qiling va qayta deploy
+
+### Build xato (`@tailwindcss/postcss` topilmadi)
+- Sabab: `NODE_ENV=production` bo'lganda devDependencies o'rnatilmaydi
+- Loyihada build paketlari `dependencies` ga ko'chirilgan — GitHub ga push qiling va qayta deploy
+
 ### Build xato (`better-sqlite3`)
 - `NPM_CONFIG_BUILD_FROM_SOURCE=true` qo'shilganini tekshiring
 - `NODE_VERSION=20.19.0` bo'lsin

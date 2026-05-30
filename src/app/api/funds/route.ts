@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export { dynamic, runtime } from "@/lib/api-config";
 import {
   getFundsOverview,
   getFundAllocations,
