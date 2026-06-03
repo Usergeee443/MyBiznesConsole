@@ -128,20 +128,19 @@ export async function addTransaction(data: {
 }) {
   const db = await getMysqlDb();
   const now = new Date().toISOString();
-  const [row] = await db
-    .insert(transactions)
-    .values({
-      accountSlug: data.accountSlug,
-      type: data.type,
-      amount: data.amount,
-      category: data.category ?? null,
-      description: data.description ?? null,
-      date: data.date ?? new Date().toISOString().split("T")[0],
-      toAccountSlug: data.toAccountSlug ?? null,
-      createdAt: now,
-    })
-    .returning();
-  return row;
+  await db.insert(transactions).values({
+    accountSlug: data.accountSlug,
+    type: data.type,
+    amount: data.amount,
+    category: data.category ?? null,
+    description: data.description ?? null,
+    date: data.date ?? new Date().toISOString().split("T")[0],
+    toAccountSlug: data.toAccountSlug ?? null,
+    createdAt: now,
+  });
+  return await one(
+    db.select().from(transactions).orderBy(desc(transactions.id)).limit(1)
+  );
 }
 
 export async function getRecentTransactions(limit = 20) {
@@ -172,13 +171,18 @@ export async function updateTransaction(
   }>
 ) {
   const db = await getMysqlDb();
-  const [row] = await db.update(transactions).set(data).where(eq(transactions.id, id)).returning();
-  return row;
+  await db.update(transactions).set(data).where(eq(transactions.id, id));
+  return await one(
+    db.select().from(transactions).where(eq(transactions.id, id))
+  );
 }
 
 export async function deleteTransaction(id: number) {
   const db = await getMysqlDb();
-  const [row] = await db.delete(transactions).where(eq(transactions.id, id)).returning();
+  const row = await one(
+    db.select().from(transactions).where(eq(transactions.id, id))
+  );
+  await db.delete(transactions).where(eq(transactions.id, id));
   return row;
 }
 
@@ -196,18 +200,19 @@ export async function addProduct(data: {
 }) {
   const db = await getMysqlDb();
   const now = new Date().toISOString();
-  const [product] = await db
-    .insert(products)
-    .values({
-      name: data.name,
-      unit: data.unit,
-      price: data.price,
-      costPrice: data.costPrice ?? 0,
-      stock: data.stock ?? 0,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
+  await db.insert(products).values({
+    name: data.name,
+    unit: data.unit,
+    price: data.price,
+    costPrice: data.costPrice ?? 0,
+    stock: data.stock ?? 0,
+    createdAt: now,
+    updatedAt: now,
+  });
+  const product = await one(
+    db.select().from(products).orderBy(desc(products.id)).limit(1)
+  );
+  if (!product) throw new Error("Product insert failed");
 
   await db.insert(productCostConfig)
     .values({ productId: product.id, workerPay: 300, itemsPerBox: 16, boxType: "normal" })
@@ -230,22 +235,20 @@ export async function updateProduct(
   data: Partial<{ name: string; unit: string; price: number; costPrice: number; stock: number }>
 ) {
   const db = await getMysqlDb();
-  const [row] = await db
+  await db
     .update(products)
     .set({ ...data, updatedAt: new Date().toISOString() })
-    .where(eq(products.id, id))
-    .returning();
-  return row;
+    .where(eq(products.id, id));
+  return await one(db.select().from(products).where(eq(products.id, id)));
 }
 
 export async function deleteProduct(id: number) {
   const db = await getMysqlDb();
-  const [row] = await db
+  await db
     .update(products)
     .set({ isActive: false, updatedAt: new Date().toISOString() })
-    .where(eq(products.id, id))
-    .returning();
-  return row;
+    .where(eq(products.id, id));
+  return await one(db.select().from(products).where(eq(products.id, id)));
 }
 
 export async function getCustomers() {
@@ -261,11 +264,12 @@ export async function addCustomer(data: {
   notes?: string;
 }) {
   const db = await getMysqlDb();
-  const [row] = await db
+  await db
     .insert(customers)
-    .values({ ...data, createdAt: new Date().toISOString() })
-    .returning();
-  return row;
+    .values({ ...data, createdAt: new Date().toISOString() });
+  return await one(
+    db.select().from(customers).orderBy(desc(customers.id)).limit(1)
+  );
 }
 
 export async function getSales(limit = 50) {
@@ -294,18 +298,19 @@ export async function createSale(data: {
   const total = data.items.reduce((s, i) => s + i.quantity * i.price, 0);
   const now = new Date().toISOString();
 
-  const [sale] = await db
-    .insert(sales)
-    .values({
-      customerId: data.customerId ?? null,
-      date,
-      total,
-      paid: data.paid,
-      paymentType: data.paymentType,
-      notes: data.notes ?? null,
-      createdAt: now,
-    })
-    .returning();
+  await db.insert(sales).values({
+    customerId: data.customerId ?? null,
+    date,
+    total,
+    paid: data.paid,
+    paymentType: data.paymentType,
+    notes: data.notes ?? null,
+    createdAt: now,
+  });
+  const sale = await one(
+    db.select().from(sales).orderBy(desc(sales.id)).limit(1)
+  );
+  if (!sale) throw new Error("Sale insert failed");
 
   for (const item of data.items) {
     await db.insert(saleItems)
@@ -360,7 +365,8 @@ export async function deleteSale(id: number) {
   const db = await getMysqlDb();
   await db.delete(saleItems).where(eq(saleItems.saleId, id));
   await db.delete(debts).where(eq(debts.saleId, id));
-  const [row] = await db.delete(sales).where(eq(sales.id, id)).returning();
+  const row = await one(db.select().from(sales).where(eq(sales.id, id)));
+  await db.delete(sales).where(eq(sales.id, id));
   return row;
 }
 
@@ -383,11 +389,12 @@ export async function payDebt(id: number, amount: number) {
   const remaining = debt.amount - newPaid;
   const status = remaining <= 0 ? "paid" : newPaid > 0 ? "partial" : "pending";
 
-  const [updated] = await db
+  await db
     .update(debts)
     .set({ paidAmount: newPaid, status })
-    .where(eq(debts.id, id))
-    .returning();
+    .where(eq(debts.id, id));
+
+  const updated = await one(db.select().from(debts).where(eq(debts.id, id)));
 
   await addTransaction({
     accountSlug: "nur-garden",
@@ -492,7 +499,7 @@ export async function addArenaTopStat(data: {
 
   let stat;
   if (existing) {
-    const [updated] = await db
+    await db
       .update(arenaTopStats)
       .set({
         stadiumsAdded: data.stadiumsAdded,
@@ -502,9 +509,10 @@ export async function addArenaTopStat(data: {
         bookings: data.bookings,
         notes: data.notes ?? null,
       })
-      .where(eq(arenaTopStats.date, data.date))
-      .returning();
-    stat = updated;
+      .where(eq(arenaTopStats.date, data.date));
+    stat = await one(
+      db.select().from(arenaTopStats).where(eq(arenaTopStats.date, data.date))
+    );
 
     if (existing.transactionId) {
       if (commission > 0) {
@@ -513,14 +521,14 @@ export async function addArenaTopStat(data: {
           description: `${data.bookings} ta bron (${data.date})`,
           date: data.date,
         });
-      } else {
+      } else if (stat) {
         await deleteTransaction(existing.transactionId);
-        await db.update(arenaTopStats)
+        await db
+          .update(arenaTopStats)
           .set({ transactionId: null })
-          .where(eq(arenaTopStats.id, stat.id))
-          ;
+          .where(eq(arenaTopStats.id, stat.id));
       }
-    } else if (commission > 0) {
+    } else if (commission > 0 && stat) {
       const tx = await addTransaction({
         accountSlug: "arenatop",
         type: "income",
@@ -529,29 +537,33 @@ export async function addArenaTopStat(data: {
         description: `${data.bookings} ta bron (${data.date})`,
         date: data.date,
       });
-      await db.update(arenaTopStats)
-        .set({ transactionId: tx.id })
-        .where(eq(arenaTopStats.id, stat.id))
-        ;
+      if (tx) {
+        await db
+          .update(arenaTopStats)
+          .set({ transactionId: tx.id })
+          .where(eq(arenaTopStats.id, stat.id));
+        stat = await one(
+          db.select().from(arenaTopStats).where(eq(arenaTopStats.id, stat.id))
+        );
+      }
     }
   } else {
-    const [inserted] = await db
-      .insert(arenaTopStats)
-      .values({
-        date: data.date,
-        stadiumsAdded: data.stadiumsAdded,
-        totalStadiums: data.totalStadiums,
-        usersAdded: data.usersAdded,
-        totalUsers: data.totalUsers,
-        bookings: data.bookings,
-        commissionPerBooking: ARENATOP_COMMISSION,
-        notes: data.notes ?? null,
-        createdAt: now,
-      })
-      .returning();
-    stat = inserted;
+    await db.insert(arenaTopStats).values({
+      date: data.date,
+      stadiumsAdded: data.stadiumsAdded,
+      totalStadiums: data.totalStadiums,
+      usersAdded: data.usersAdded,
+      totalUsers: data.totalUsers,
+      bookings: data.bookings,
+      commissionPerBooking: ARENATOP_COMMISSION,
+      notes: data.notes ?? null,
+      createdAt: now,
+    });
+    stat = await one(
+      db.select().from(arenaTopStats).where(eq(arenaTopStats.date, data.date))
+    );
 
-    if (commission > 0) {
+    if (commission > 0 && stat) {
       const tx = await addTransaction({
         accountSlug: "arenatop",
         type: "income",
@@ -560,12 +572,15 @@ export async function addArenaTopStat(data: {
         description: `${data.bookings} ta bron (${data.date})`,
         date: data.date,
       });
-      const [withTx] = await db
-        .update(arenaTopStats)
-        .set({ transactionId: tx.id })
-        .where(eq(arenaTopStats.id, stat.id))
-        .returning();
-      stat = withTx;
+      if (tx) {
+        await db
+          .update(arenaTopStats)
+          .set({ transactionId: tx.id })
+          .where(eq(arenaTopStats.id, stat.id));
+        stat = await one(
+          db.select().from(arenaTopStats).where(eq(arenaTopStats.id, stat.id))
+        );
+      }
     }
   }
 
@@ -598,7 +613,7 @@ export async function updateArenaTopStat(
   }
 
   const commission = data.bookings * ARENATOP_COMMISSION;
-  const [stat] = await db
+  await db
     .update(arenaTopStats)
     .set({
       date: data.date,
@@ -609,8 +624,11 @@ export async function updateArenaTopStat(
       bookings: data.bookings,
       notes: data.notes ?? null,
     })
-    .where(eq(arenaTopStats.id, id))
-    .returning();
+    .where(eq(arenaTopStats.id, id));
+
+  let stat = await one(
+    db.select().from(arenaTopStats).where(eq(arenaTopStats.id, id))
+  );
 
   if (existing.transactionId) {
     if (commission > 0) {
@@ -635,10 +653,15 @@ export async function updateArenaTopStat(
       description: `${data.bookings} ta bron (${data.date})`,
       date: data.date,
     });
-    await db.update(arenaTopStats)
-      .set({ transactionId: tx.id })
-      .where(eq(arenaTopStats.id, id))
-      ;
+    if (tx) {
+      await db
+        .update(arenaTopStats)
+        .set({ transactionId: tx.id })
+        .where(eq(arenaTopStats.id, id));
+      stat = await one(
+        db.select().from(arenaTopStats).where(eq(arenaTopStats.id, id))
+      );
+    }
   }
 
   return stat;
@@ -655,11 +678,8 @@ export async function deleteArenaTopStat(id: number) {
     await deleteTransaction(stat.transactionId);
   }
 
-  const [row] = await db
-    .delete(arenaTopStats)
-    .where(eq(arenaTopStats.id, id))
-    .returning();
-  return row;
+  await db.delete(arenaTopStats).where(eq(arenaTopStats.id, id));
+  return stat;
 }
 
 export async function getArenaTopAnalytics() {
@@ -718,10 +738,10 @@ export async function getFundDeposits() {
 
 export async function deleteFundDeposit(id: number) {
   const db = await getMysqlDb();
-  const [row] = await db
-    .delete(fundDeposits)
-    .where(eq(fundDeposits.id, id))
-    .returning();
+  const row = await one(
+    db.select().from(fundDeposits).where(eq(fundDeposits.id, id))
+  );
+  await db.delete(fundDeposits).where(eq(fundDeposits.id, id));
   return row;
 }
 
@@ -771,19 +791,22 @@ export async function allocateFundsForMonth(month?: string) {
 
       if (existing) continue;
 
-      const [deposit] = await db
-        .insert(fundDeposits)
-        .values({
-          fundSlug: alloc.fundSlug,
-          amount,
-          businessSlug: biz,
-          month: targetMonth,
-          date: new Date().toISOString().split("T")[0],
-          createdAt: new Date().toISOString(),
-        })
-        .returning();
-
-      results.push(deposit);
+      await db.insert(fundDeposits).values({
+        fundSlug: alloc.fundSlug,
+        amount,
+        businessSlug: biz,
+        month: targetMonth,
+        date: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
+      });
+      const deposit = await one(
+        db
+          .select()
+          .from(fundDeposits)
+          .orderBy(desc(fundDeposits.id))
+          .limit(1)
+      );
+      if (deposit) results.push(deposit);
     }
   }
 

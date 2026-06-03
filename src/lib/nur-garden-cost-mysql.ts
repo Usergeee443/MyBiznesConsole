@@ -9,7 +9,7 @@ import {
   boxPurchases,
   logisticsExpenses,
 } from "./db/mysql-schema";
-import { eq, desc, sum, sql } from "drizzle-orm";
+import { eq, desc, sum, and } from "drizzle-orm";
 import { addTransaction } from "./services-mysql";
 
 export const PRICE_TIERS = {
@@ -27,16 +27,15 @@ export async function updatePackaging(data: { stock?: number; unitCost?: number 
   const db = await getMysqlDb();
   const row = await getPackaging();
   if (!row) return null;
-  const [updated] = await db
+  await db
     .update(packagingSettings)
     .set({
       stock: data.stock ?? row.stock,
       unitCost: data.unitCost ?? row.unitCost,
       updatedAt: new Date().toISOString(),
     })
-    .where(eq(packagingSettings.id, row.id))
-    .returning();
-  return updated;
+    .where(eq(packagingSettings.id, row.id));
+  return getPackaging();
 }
 
 export async function getProductPrices(productId: number) {
@@ -53,22 +52,24 @@ export async function setProductPrices(
 ) {
   const db = await getMysqlDb();
   for (const [tier, price] of Object.entries(prices)) {
-    const existing = db
-      .select()
-      .from(productPrices)
-      .where(
-        sql`${productPrices.productId} = ${productId} AND ${productPrices.tier} = ${tier}`
-      )
-      ;
+    const existing = await one(
+      db
+        .select()
+        .from(productPrices)
+        .where(
+          and(
+            eq(productPrices.productId, productId),
+            eq(productPrices.tier, tier)
+          )
+        )
+    );
     if (existing) {
-      await db.update(productPrices)
+      await db
+        .update(productPrices)
         .set({ price })
-        .where(eq(productPrices.id, existing.id))
-        ;
+        .where(eq(productPrices.id, existing.id));
     } else {
-      await db.insert(productPrices)
-        .values({ productId, tier, price })
-        ;
+      await db.insert(productPrices).values({ productId, tier, price });
     }
   }
   return await getProductPrices(productId);
@@ -76,11 +77,12 @@ export async function setProductPrices(
 
 export async function getProductCostConfig(productId: number) {
   const db = await getMysqlDb();
-  return db
-    .select()
-    .from(productCostConfig)
-    .where(eq(productCostConfig.productId, productId))
-    ;
+  return await one(
+    db
+      .select()
+      .from(productCostConfig)
+      .where(eq(productCostConfig.productId, productId))
+  );
 }
 
 export async function updateProductCostConfig(
@@ -90,36 +92,33 @@ export async function updateProductCostConfig(
   const db = await getMysqlDb();
   const existing = await getProductCostConfig(productId);
   if (existing) {
-    return db
+    await db
       .update(productCostConfig)
       .set({
         workerPay: data.workerPay ?? existing.workerPay,
         itemsPerBox: data.itemsPerBox ?? existing.itemsPerBox,
         boxType: data.boxType ?? existing.boxType,
       })
-      .where(eq(productCostConfig.productId, productId))
-      .returning();
+      .where(eq(productCostConfig.productId, productId));
+    return getProductCostConfig(productId);
   }
-  return db
-    .insert(productCostConfig)
-    .values({
-      productId,
-      workerPay: data.workerPay ?? 300,
-      itemsPerBox: data.itemsPerBox ?? 16,
-      boxType: data.boxType ?? "normal",
-    })
-    .returning();
+  await db.insert(productCostConfig).values({
+    productId,
+    workerPay: data.workerPay ?? 300,
+    itemsPerBox: data.itemsPerBox ?? 16,
+    boxType: data.boxType ?? "normal",
+  });
+  return getProductCostConfig(productId);
 }
 
 export async function getPurchases(limit = 50) {
   const db = await getMysqlDb();
-  return db
+  return await db
     .select({ purchase: purchases, product: products })
     .from(purchases)
     .leftJoin(products, eq(purchases.productId, products.id))
     .orderBy(desc(purchases.date))
-    .limit(limit)
-    ;
+    .limit(limit);
 }
 
 export async function addPurchase(data: {
@@ -139,21 +138,22 @@ export async function addPurchase(data: {
   const now = new Date().toISOString();
   const date = data.date ?? now.split("T")[0];
 
-  const purchase = db
-    .insert(purchases)
-    .values({
-      productId: data.productId ?? null,
-      name: data.name,
-      quantity: data.quantity,
-      unitPrice: data.unitPrice,
-      total,
-      paymentType: data.paymentType,
-      paid,
-      notes: data.notes ?? null,
-      date,
-      createdAt: now,
-    })
-    .returning();
+  await db.insert(purchases).values({
+    productId: data.productId ?? null,
+    name: data.name,
+    quantity: data.quantity,
+    unitPrice: data.unitPrice,
+    total,
+    paymentType: data.paymentType,
+    paid,
+    notes: data.notes ?? null,
+    date,
+    createdAt: now,
+  });
+  const purchase = await one(
+    db.select().from(purchases).orderBy(desc(purchases.id)).limit(1)
+  );
+  if (!purchase) throw new Error("Purchase insert failed");
 
   if (paid > 0) {
     await addTransaction({
@@ -194,45 +194,54 @@ export async function updatePurchase(
   }>
 ) {
   const db = await getMysqlDb();
-  const existing = db.select().from(purchases).where(eq(purchases.id, id));
+  const existing = await one(
+    db.select().from(purchases).where(eq(purchases.id, id))
+  );
   if (!existing) return null;
   const quantity = data.quantity ?? existing.quantity;
   const unitPrice = data.unitPrice ?? existing.unitPrice;
   const total = quantity * unitPrice;
-  return db
+  await db
     .update(purchases)
     .set({ ...data, total })
-    .where(eq(purchases.id, id))
-    .returning();
+    .where(eq(purchases.id, id));
+  return one(db.select().from(purchases).where(eq(purchases.id, id)));
 }
 
 export async function deletePurchase(id: number) {
   const db = await getMysqlDb();
+  const existing = await one(
+    db.select().from(purchases).where(eq(purchases.id, id))
+  );
   await db.delete(supplierDebts).where(eq(supplierDebts.purchaseId, id));
-  return db.delete(purchases).where(eq(purchases.id, id)).returning();
+  await db.delete(purchases).where(eq(purchases.id, id));
+  return existing;
 }
 
 export async function getSupplierDebts() {
   const db = await getMysqlDb();
-  return db
+  return await db
     .select({ debt: supplierDebts, purchase: purchases })
     .from(supplierDebts)
     .leftJoin(purchases, eq(supplierDebts.purchaseId, purchases.id))
-    .orderBy(desc(supplierDebts.createdAt))
-    ;
+    .orderBy(desc(supplierDebts.createdAt));
 }
 
 export async function paySupplierDebt(id: number, amount: number) {
   const db = await getMysqlDb();
-  const debt = db.select().from(supplierDebts).where(eq(supplierDebts.id, id));
+  const debt = await one(
+    db.select().from(supplierDebts).where(eq(supplierDebts.id, id))
+  );
   if (!debt) return null;
   const newPaid = debt.paidAmount + amount;
   const status = newPaid >= debt.amount ? "paid" : "partial";
-  const updated = db
+  await db
     .update(supplierDebts)
     .set({ paidAmount: newPaid, status })
-    .where(eq(supplierDebts.id, id))
-    .returning();
+    .where(eq(supplierDebts.id, id));
+  const updated = await one(
+    db.select().from(supplierDebts).where(eq(supplierDebts.id, id))
+  );
   await addTransaction({
     accountSlug: "nur-garden",
     type: "expense",
@@ -245,12 +254,11 @@ export async function paySupplierDebt(id: number, amount: number) {
 
 export async function getBoxPurchases(limit = 30) {
   const db = await getMysqlDb();
-  return db
+  return await db
     .select()
     .from(boxPurchases)
     .orderBy(desc(boxPurchases.date))
-    .limit(limit)
-    ;
+    .limit(limit);
 }
 
 export async function addBoxPurchase(data: {
@@ -262,17 +270,17 @@ export async function addBoxPurchase(data: {
 }) {
   const db = await getMysqlDb();
   const now = new Date().toISOString();
-  const purchase = db
-    .insert(boxPurchases)
-    .values({
-      quantity: data.quantity,
-      unitCost: data.unitCost,
-      boxType: data.boxType,
-      date: data.date ?? now.split("T")[0],
-      notes: data.notes ?? null,
-      createdAt: now,
-    })
-    .returning();
+  await db.insert(boxPurchases).values({
+    quantity: data.quantity,
+    unitCost: data.unitCost,
+    boxType: data.boxType,
+    date: data.date ?? now.split("T")[0],
+    notes: data.notes ?? null,
+    createdAt: now,
+  });
+  const purchase = await one(
+    db.select().from(boxPurchases).orderBy(desc(boxPurchases.id)).limit(1)
+  );
 
   await addTransaction({
     accountSlug: "nur-garden",
@@ -288,17 +296,20 @@ export async function addBoxPurchase(data: {
 
 export async function deleteBoxPurchase(id: number) {
   const db = await getMysqlDb();
-  return db.delete(boxPurchases).where(eq(boxPurchases.id, id)).returning();
+  const existing = await one(
+    db.select().from(boxPurchases).where(eq(boxPurchases.id, id))
+  );
+  await db.delete(boxPurchases).where(eq(boxPurchases.id, id));
+  return existing;
 }
 
 export async function getLogistics(limit = 30) {
   const db = await getMysqlDb();
-  return db
+  return await db
     .select()
     .from(logisticsExpenses)
     .orderBy(desc(logisticsExpenses.date))
-    .limit(limit)
-    ;
+    .limit(limit);
 }
 
 export async function addLogistics(data: {
@@ -308,15 +319,15 @@ export async function addLogistics(data: {
 }) {
   const db = await getMysqlDb();
   const now = new Date().toISOString();
-  const row = db
-    .insert(logisticsExpenses)
-    .values({
-      amount: data.amount,
-      date: data.date ?? now.split("T")[0],
-      notes: data.notes ?? null,
-      createdAt: now,
-    })
-    .returning();
+  await db.insert(logisticsExpenses).values({
+    amount: data.amount,
+    date: data.date ?? now.split("T")[0],
+    notes: data.notes ?? null,
+    createdAt: now,
+  });
+  const row = await one(
+    db.select().from(logisticsExpenses).orderBy(desc(logisticsExpenses.id)).limit(1)
+  );
 
   await addTransaction({
     accountSlug: "nur-garden",
@@ -332,14 +343,15 @@ export async function addLogistics(data: {
 
 export async function deleteLogistics(id: number) {
   const db = await getMysqlDb();
-  return db
-    .delete(logisticsExpenses)
-    .where(eq(logisticsExpenses.id, id))
-    .returning();
+  const existing = await one(
+    db.select().from(logisticsExpenses).where(eq(logisticsExpenses.id, id))
+  );
+  await db.delete(logisticsExpenses).where(eq(logisticsExpenses.id, id));
+  return existing;
 }
 
-function avgBoxCostPerUnit() {
-  const rows = db.select().from(boxPurchases);
+async function avgBoxCostPerUnit(db: Awaited<ReturnType<typeof getMysqlDb>>) {
+  const rows = await db.select().from(boxPurchases);
   if (rows.length === 0) return 5250 / 16;
   let totalCost = 0;
   let totalCapacity = 0;
@@ -351,29 +363,34 @@ function avgBoxCostPerUnit() {
   return totalCapacity > 0 ? totalCost / totalCapacity : 5250 / 16;
 }
 
-function logisticsPerUnit() {
-  const totalLogistics = db
-    .select({ t: sum(logisticsExpenses.amount) })
-    .from(logisticsExpenses)
-    ;
+async function logisticsPerUnit(db: Awaited<ReturnType<typeof getMysqlDb>>) {
+  const totalLogistics = await one(
+    db
+      .select({ t: sum(logisticsExpenses.amount) })
+      .from(logisticsExpenses)
+  );
   const logTotal = Number(totalLogistics?.t ?? 0);
   if (logTotal <= 0) return 0;
 
-  const allPurchases = db.select().from(purchases);
+  const allPurchases = await db.select().from(purchases);
   const totalQty = allPurchases.reduce((s, p) => s + p.quantity, 0);
   if (totalQty <= 0) return 0;
 
   return logTotal / totalQty;
 }
 
-function avgMaterialCost(productId: number) {
-  const rows = db
+async function avgMaterialCost(
+  db: Awaited<ReturnType<typeof getMysqlDb>>,
+  productId: number
+) {
+  const rows = await db
     .select()
     .from(purchases)
-    .where(eq(purchases.productId, productId))
-    ;
+    .where(eq(purchases.productId, productId));
   if (rows.length === 0) {
-    const p = db.select().from(products).where(eq(products.id, productId));
+    const p = await one(
+      db.select().from(products).where(eq(products.id, productId))
+    );
     return p?.costPrice ?? 0;
   }
   const totalQty = rows.reduce((s, r) => s + r.quantity, 0);
@@ -387,12 +404,12 @@ export async function calculateProductCost(productId: number) {
   const config = await getProductCostConfig(productId);
   const prices = await getProductPrices(productId);
 
-  const material = avgMaterialCost(productId);
+  const material = await avgMaterialCost(db, productId);
   const packagingCost = packaging?.unitCost ?? 700;
   const labor = config?.workerPay ?? 300;
   const itemsPerBox = config?.itemsPerBox ?? (config?.boxType === "large" ? 24 : 16);
-  const boxPerUnit = avgBoxCostPerUnit();
-  const logistics = logisticsPerUnit();
+  const boxPerUnit = await avgBoxCostPerUnit(db);
+  const logistics = await logisticsPerUnit(db);
 
   const total = material + packagingCost + labor + boxPerUnit + logistics;
 
@@ -427,22 +444,25 @@ export async function calculateProductCost(productId: number) {
 
 export async function getNurGardenCostingOverview() {
   const db = await getMysqlDb();
-  const allProducts = db
+  const allProducts = await db
     .select()
     .from(products)
-    .where(eq(products.isActive, true))
-    ;
+    .where(eq(products.isActive, true));
+
+  const productsWithCost = await Promise.all(
+    allProducts.map(async (p) => ({
+      ...p,
+      cost: await calculateProductCost(p.id),
+      prices: await getProductPrices(p.id),
+    }))
+  );
 
   return {
     packaging: await getPackaging(),
     purchases: await getPurchases(20),
-    supplierDebts: getSupplierDebts(),
-    boxPurchases: getBoxPurchases(10),
-    logistics: getLogistics(10),
-    products: allProducts.map((p) => ({
-      ...p,
-      cost: await calculateProductCost(p.id),
-      prices: await getProductPrices(p.id),
-    })),
+    supplierDebts: await getSupplierDebts(),
+    boxPurchases: await getBoxPurchases(10),
+    logistics: await getLogistics(10),
+    products: productsWithCost,
   };
 }

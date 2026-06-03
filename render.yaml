@@ -12,11 +12,23 @@ services:
         value: production
       - key: NODE_VERSION
         value: 20.19.0
+      - key: NPM_CONFIG_BUILD_FROM_SOURCE
+        value: "true"
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_OWNER_ID
         sync: false
       - key: TELEGRAM_WEBHOOK_SECRET
         generateValue: true
-      - key: NPM_CONFIG_BUILD_FROM_SOURCE
-        value: "true"
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_PORT
+        value: "3306"
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DATABASE
+        sync: false
+      - key: MYSQL_SSL
+        value: "false"

@@ -17,7 +17,7 @@ npm run dev
 
 Brauzerda oching: [http://localhost:3000](http://localhost:3000)
 
-Ma'lumotlar `data/biznes.db` faylida saqlanadi (SQLite).
+**Ma'lumotlar bazasi:** `.env` da `MYSQL_*` bo'lsa — MySQL; aks holda lokal `data/biznes.db` (SQLite).
 
 ## Telegram bot
 
@@ -50,7 +50,7 @@ Batafsil qo'llanma: **[DEPLOY.md](./DEPLOY.md)** — Web Service (Blueprint shar
 # Render Dashboard → New → Web Service → Free plan
 # Build: npm ci && npm run build
 # Start: npm start
-# DB: data/biznes.db (disk kerak emas)
+# Env: TELEGRAM_* + MYSQL_* (tavsiya, batafsil DEPLOY.md)
 ```
 
 ## Bo'limlar

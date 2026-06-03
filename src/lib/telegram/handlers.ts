@@ -119,12 +119,11 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("m:dashboard", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(await F.formatDashboard(), {
+    const text = await F.formatDashboard();
+    await ctx.editMessageText(text, {
       parse_mode: "HTML",
       reply_markup: backToMainKeyboard(),
-    }).catch(() =>
-      replyMain(ctx, await F.formatDashboard())
-    );
+    }).catch(() => replyMain(ctx, text));
   });
 
   bot.callbackQuery("m:balance", async (ctx) => {

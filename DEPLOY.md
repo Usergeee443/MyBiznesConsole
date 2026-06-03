@@ -1,8 +1,8 @@
-# Render Web Service — deploy qo'llanmasi (bepul, disk siz)
+# Render Web Service — production deploy
 
-Ma'lumotlar loyiha ichidagi `data/biznes.db` da saqlanadi — **qo'shimcha disk kerak emas**.
+**Tavsiya:** Render da `MYSQL_*` o'zgaruvchilarini to'ldiring — ma'lumotlar uzoq muddatli MySQL serverda saqlanadi (redeploy da yo'qolmaydi).
 
-> **Eslatma:** Render bepul rejimida redeploy yoki uzoq vaqt ishlmasa ma'lumotlar yo'qolishi mumkin. Keyinroq pullik disk qo'shish mumkin.
+MySQL bo'lmasa: vaqtinchalik SQLite (`data/biznes.db`) — bepul rejimda redeploy da ma'lumotlar yo'qolishi mumkin.
 
 ---
 

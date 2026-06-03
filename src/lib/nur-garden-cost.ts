@@ -1,20 +1,25 @@
 import { isMySqlConfigured } from "./mysql";
 
 type CostModule = typeof import("./nur-garden-cost-sqlite");
+type CostFnKey = {
+  [K in keyof CostModule]: CostModule[K] extends (...args: never[]) => unknown
+    ? K
+    : never;
+}[keyof CostModule];
 
 async function loadBackend(): Promise<CostModule> {
   if (isMySqlConfigured()) {
-    return import("./nur-garden-cost-mysql") as Promise<CostModule>;
+    return import("./nur-garden-cost-mysql") as unknown as Promise<CostModule>;
   }
   return import("./nur-garden-cost-sqlite");
 }
 
-function wrap<K extends keyof CostModule>(name: K) {
+function wrap<K extends CostFnKey>(name: K) {
   return (async (...args: Parameters<CostModule[K]>) => {
     const mod = await loadBackend();
     const impl = mod[name] as (...a: Parameters<CostModule[K]>) => unknown;
     return impl(...args);
-  }) as CostModule[K];
+  }) as unknown as CostModule[K];
 }
 
 export const PRICE_TIERS = {

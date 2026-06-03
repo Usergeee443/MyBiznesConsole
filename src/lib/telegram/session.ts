@@ -3,6 +3,8 @@ import { getMySqlPool, isMySqlConfigured } from "../mysql";
 
 export type SessionData = Record<string, unknown>;
 
+type SessionRow = { step: string | null; data: string | null };
+
 function ensureSqliteTable() {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS telegram_sessions (
@@ -33,10 +35,13 @@ export async function getSession(chatId: number): Promise<{
   if (isMySqlConfigured()) {
     await ensureMysqlTable();
     const pool = getMySqlPool();
-    const [rows] = await pool.query<
-      { step: string | null; data: string | null }[]
-    >("SELECT step, data FROM telegram_sessions WHERE chat_id = ?", [chatId]);
-    const row = Array.isArray(rows) ? rows[0] : undefined;
+    const [rows] = await pool.query(
+      "SELECT step, data FROM telegram_sessions WHERE chat_id = ?",
+      [chatId]
+    );
+    const row = (Array.isArray(rows) ? rows[0] : undefined) as
+      | SessionRow
+      | undefined;
     if (!row) return { step: null, data: {} };
     return {
       step: row.step,

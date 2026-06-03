@@ -1,21 +1,28 @@
 import { isMySqlConfigured } from "./mysql";
 
 type ServiceModule = typeof import("./services-sqlite");
+type ServiceFnKey = {
+  [K in keyof ServiceModule]: ServiceModule[K] extends (
+    ...args: never[]
+  ) => unknown
+    ? K
+    : never;
+}[keyof ServiceModule];
 
 async function loadBackend(): Promise<ServiceModule> {
   if (isMySqlConfigured()) {
-    return import("./services-mysql") as Promise<ServiceModule>;
+    return import("./services-mysql") as unknown as Promise<ServiceModule>;
   }
   return import("./services-sqlite");
 }
 
-function wrap<K extends keyof ServiceModule>(name: K) {
+function wrap<K extends ServiceFnKey>(name: K) {
   const fn = async (...args: Parameters<ServiceModule[K]>) => {
     const mod = await loadBackend();
     const impl = mod[name] as (...a: Parameters<ServiceModule[K]>) => unknown;
     return impl(...args);
   };
-  return fn as ServiceModule[K];
+  return fn as unknown as ServiceModule[K];
 }
 
 export const getAccountBalance = wrap("getAccountBalance");

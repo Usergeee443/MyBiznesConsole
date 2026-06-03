@@ -210,11 +210,11 @@ export async function initMySqlDatabase(): Promise<void> {
 }
 
 async function seedIfEmpty(pool: ReturnType<typeof getMySqlPool>) {
-  const [rows] = await pool.query<{ c: number }[]>(
+  const [rows] = await pool.query(
     "SELECT COUNT(*) as c FROM accounts WHERE slug = ?",
     ["nur-garden"]
   );
-  const count = Array.isArray(rows) ? (rows[0] as { c: number })?.c : 0;
+  const count = Number((rows as { c: number }[])[0]?.c ?? 0);
   if (count > 0) return;
 
   const now = new Date().toISOString();
@@ -321,10 +321,10 @@ async function seedIfEmpty(pool: ReturnType<typeof getMySqlPool>) {
       }
     }
 
-    const [packRows] = await conn.query<{ c: number }[]>(
+    const [packRows] = await conn.query(
       "SELECT COUNT(*) as c FROM packaging_settings"
     );
-    const packCount = (packRows as { c: number }[])[0]?.c ?? 0;
+    const packCount = Number((packRows as { c: number }[])[0]?.c ?? 0);
     if (packCount === 0) {
       await conn.query(
         `INSERT INTO packaging_settings (stock, unit_cost, updated_at) VALUES (20000, 700, ?)`,
@@ -363,10 +363,10 @@ async function migrateFunds(pool: ReturnType<typeof getMySqlPool>) {
     ["Uy, mashina va katta xaridlar uchun (10%)"]
   );
 
-  const [rows] = await pool.query<{ c: number }[]>(
+  const [rows] = await pool.query(
     `SELECT COUNT(*) as c FROM fund_allocations WHERE fund_slug = 'rozgor' AND business_slug = 'personal' AND percentage = 20`
   );
-  if ((rows as { c: number }[])[0]?.c > 0) return;
+  if (Number((rows as { c: number }[])[0]?.c ?? 0) > 0) return;
 
   await pool.query("DELETE FROM fund_allocations");
   const sources = ["nur-garden", "arenatop", "other-income", "personal"];
@@ -387,7 +387,7 @@ async function migrateFunds(pool: ReturnType<typeof getMySqlPool>) {
 }
 
 async function migrateProductDefaults(pool: ReturnType<typeof getMySqlPool>) {
-  const [products] = await pool.query<{ id: number; price: number }[]>(
+  const [products] = await pool.query(
     "SELECT id, price FROM products WHERE is_active = 1"
   );
   for (const p of products as { id: number; price: number }[]) {
