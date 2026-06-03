@@ -19,7 +19,6 @@ import {
 } from "@/lib/services";
 import {
   getNurGardenCostingOverview,
-  getPackaging,
   updatePackaging,
   addPurchase,
   updatePurchase,
@@ -40,29 +39,29 @@ export async function GET(request: Request) {
 
   switch (type) {
     case "products":
-      return NextResponse.json(getProducts());
+      return NextResponse.json(await getProducts());
     case "customers":
-      return NextResponse.json(getCustomers());
+      return NextResponse.json(await getCustomers());
     case "sales":
-      return NextResponse.json(getSales());
+      return NextResponse.json(await getSales());
     case "debts":
-      return NextResponse.json(getDebts());
+      return NextResponse.json(await getDebts());
     case "analytics":
-      return NextResponse.json(getNurGardenAnalytics());
+      return NextResponse.json(await getNurGardenAnalytics());
     case "costing":
-      return NextResponse.json(getNurGardenCostingOverview());
+      return NextResponse.json(await getNurGardenCostingOverview());
     case "productCost":
       return NextResponse.json(
-        calculateProductCost(Number(searchParams.get("productId")))
+        await calculateProductCost(Number(searchParams.get("productId")))
       );
     default:
       return NextResponse.json({
-        products: getProducts(),
-        customers: getCustomers(),
-        sales: getSales(),
-        debts: getDebts(),
-        analytics: getNurGardenAnalytics(),
-        costing: getNurGardenCostingOverview(),
+        products: await getProducts(),
+        customers: await getCustomers(),
+        sales: await getSales(),
+        debts: await getDebts(),
+        analytics: await getNurGardenAnalytics(),
+        costing: await getNurGardenCostingOverview(),
       });
   }
 }
@@ -73,44 +72,44 @@ export async function POST(request: Request) {
 
   switch (action) {
     case "addProduct":
-      return NextResponse.json(addProduct(data));
+      return NextResponse.json(await addProduct(data));
     case "updateProduct":
-      return NextResponse.json(updateProduct(data.id, data));
+      return NextResponse.json(await updateProduct(data.id, data));
     case "deleteProduct":
-      return NextResponse.json(deleteProduct(data.id));
+      return NextResponse.json(await deleteProduct(data.id));
     case "addCustomer":
-      return NextResponse.json(addCustomer(data));
+      return NextResponse.json(await addCustomer(data));
     case "createSale":
-      return NextResponse.json(createSale(data));
+      return NextResponse.json(await createSale(data));
     case "deleteSale":
-      return NextResponse.json(deleteSale(data.id));
+      return NextResponse.json(await deleteSale(data.id));
     case "payDebt":
-      return NextResponse.json(payDebt(data.id, data.amount));
+      return NextResponse.json(await payDebt(data.id, data.amount));
     case "updatePackaging":
-      return NextResponse.json(updatePackaging(data));
+      return NextResponse.json(await updatePackaging(data));
     case "addPurchase":
-      return NextResponse.json(addPurchase(data));
+      return NextResponse.json(await addPurchase(data));
     case "updatePurchase":
-      return NextResponse.json(updatePurchase(data.id, data));
+      return NextResponse.json(await updatePurchase(data.id, data));
     case "deletePurchase":
-      return NextResponse.json(deletePurchase(data.id));
+      return NextResponse.json(await deletePurchase(data.id));
     case "paySupplierDebt":
-      return NextResponse.json(paySupplierDebt(data.id, data.amount));
+      return NextResponse.json(await paySupplierDebt(data.id, data.amount));
     case "addBoxPurchase":
-      return NextResponse.json(addBoxPurchase(data));
+      return NextResponse.json(await addBoxPurchase(data));
     case "deleteBoxPurchase":
-      return NextResponse.json(deleteBoxPurchase(data.id));
+      return NextResponse.json(await deleteBoxPurchase(data.id));
     case "addLogistics":
-      return NextResponse.json(addLogistics(data));
+      return NextResponse.json(await addLogistics(data));
     case "deleteLogistics":
-      return NextResponse.json(deleteLogistics(data.id));
+      return NextResponse.json(await deleteLogistics(data.id));
     case "setProductPrices":
       return NextResponse.json(
-        setProductPrices(data.productId, data.prices)
+        await setProductPrices(data.productId, data.prices)
       );
     case "updateProductCostConfig":
       return NextResponse.json(
-        updateProductCostConfig(data.productId, data)
+        await updateProductCostConfig(data.productId, data)
       );
     default:
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });

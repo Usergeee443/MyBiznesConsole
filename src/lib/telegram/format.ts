@@ -13,8 +13,8 @@ import {
 } from "../services";
 import { getNurGardenCostingOverview } from "../nur-garden-cost";
 
-export function formatDashboard(): string {
-  const s = getDashboardStats();
+export async function formatDashboard(): Promise<string> {
+  const s = await getDashboardStats();
   const b = s.balance;
   return (
     `📊 <b>MyBiznes — Bosh sahifa</b>\n\n` +
@@ -31,8 +31,8 @@ export function formatDashboard(): string {
   );
 }
 
-export function formatBalance(): string {
-  const b = getBalanceOverview();
+export async function formatBalance(): Promise<string> {
+  const b = await getBalanceOverview();
   let text = `💰 <b>Balanslar</b>\n\n`;
   text += `💎 Umumiy: <b>${formatMoney(b.total)}</b>\n\n`;
   text += `🌿 Nur&Garden: ${formatMoney(b.nurGarden.balance)}\n`;
@@ -46,8 +46,8 @@ export function formatBalance(): string {
   return text;
 }
 
-export function formatNurGardenAnalytics(): string {
-  const a = getNurGardenAnalytics();
+export async function formatNurGardenAnalytics(): Promise<string> {
+  const a = await getNurGardenAnalytics();
   return (
     `🌿 <b>Nur&Garden analitika</b>\n\n` +
     `💵 Jami daromad: ${formatMoney(a.totalRevenue)}\n` +
@@ -57,8 +57,8 @@ export function formatNurGardenAnalytics(): string {
   );
 }
 
-export function formatProducts(): string {
-  const products = getProducts();
+export async function formatProducts(): Promise<string> {
+  const products = await getProducts();
   if (products.length === 0) return "Mahsulot yo'q";
   let text = `📦 <b>Mahsulotlar</b>\n\n`;
   for (const p of products.slice(0, 15)) {
@@ -69,8 +69,8 @@ export function formatProducts(): string {
   return text;
 }
 
-export function formatSales(): string {
-  const sales = getSales(10);
+export async function formatSales(): Promise<string> {
+  const sales = await getSales(10);
   if (sales.length === 0) return "Savdo yo'q";
   let text = `🛒 <b>So'nggi savdolar</b>\n\n`;
   for (const { sale, customer } of sales) {
@@ -80,8 +80,8 @@ export function formatSales(): string {
   return text;
 }
 
-export function formatDebts(): string {
-  const debts = getDebts().filter((d) => d.debt.status !== "paid");
+export async function formatDebts(): Promise<string> {
+  const debts = (await getDebts()).filter((d) => d.debt.status !== "paid");
   if (debts.length === 0) return "✅ Qarz yo'q!";
   let text = `⚠️ <b>Qarzlar</b>\n\n`;
   for (const { debt, customer } of debts.slice(0, 10)) {
@@ -91,8 +91,8 @@ export function formatDebts(): string {
   return text;
 }
 
-export function formatCostingSummary(): string {
-  const c = getNurGardenCostingOverview();
+export async function formatCostingSummary(): Promise<string> {
+  const c = await getNurGardenCostingOverview();
   const pkg = c.packaging;
   let text =
     `💵 <b>Tan narx</b>\n\n` +
@@ -105,8 +105,8 @@ export function formatCostingSummary(): string {
   return text;
 }
 
-export function formatOsco(): string {
-  const a = getArenaTopAnalytics();
+export async function formatOsco(): Promise<string> {
+  const a = await getArenaTopAnalytics();
   let text = `🏢 <b>ArenaTop</b>\n\n`;
   text += `📊 Jami bron: ${a.totalBookings}\n`;
   text += `💵 Jami komissiya: ${formatMoney(a.totalCommission)}\n`;
@@ -120,8 +120,8 @@ export function formatOsco(): string {
   return text;
 }
 
-export function formatArenaHistory(): string {
-  const stats = getArenaTopStats(10);
+export async function formatArenaHistory(): Promise<string> {
+  const stats = await getArenaTopStats(10);
   if (stats.length === 0) return "Statistika yo'q";
   let text = `📋 <b>ArenaTop tarix</b>\n\n`;
   for (const s of stats) {
@@ -130,8 +130,8 @@ export function formatArenaHistory(): string {
   return text;
 }
 
-export function formatFunds(): string {
-  const funds = getFundsOverview();
+export async function formatFunds(): Promise<string> {
+  const funds = await getFundsOverview();
   let text = `🐷 <b>Jamg'armalar</b>\n\n`;
   let total = 0;
   for (const f of funds) {
@@ -142,8 +142,8 @@ export function formatFunds(): string {
   return text;
 }
 
-export function formatTransactions(): string {
-  const txs = getRecentTransactions(10);
+export async function formatTransactions(): Promise<string> {
+  const txs = await getRecentTransactions(10);
   if (txs.length === 0) return "Tranzaksiya yo'q";
   let text = `📜 <b>So'nggi tranzaksiyalar</b>\n\n`;
   for (const tx of txs) {

@@ -17,15 +17,15 @@ export async function GET(request: Request) {
   const month = searchParams.get("month") ?? undefined;
 
   return NextResponse.json({
-    balance: getBalanceOverview(),
-    transactions: getRecentTransactions(100),
-    expenses: getMonthlyExpenses(month),
+    balance: await getBalanceOverview(),
+    transactions: await getRecentTransactions(100),
+    expenses: await getMonthlyExpenses(month),
   });
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const tx = addTransaction(body);
+  const tx = await addTransaction(body);
   return NextResponse.json(tx);
 }
 
@@ -35,7 +35,7 @@ export async function PUT(request: Request) {
   if (!id) {
     return NextResponse.json({ error: "id kerak" }, { status: 400 });
   }
-  const tx = updateTransaction(id, data);
+  const tx = await updateTransaction(id, data);
   if (!tx) {
     return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
   }
@@ -48,7 +48,7 @@ export async function DELETE(request: Request) {
   if (!id) {
     return NextResponse.json({ error: "id kerak" }, { status: 400 });
   }
-  const tx = deleteTransaction(id);
+  const tx = await deleteTransaction(id);
   if (!tx) {
     return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
   }

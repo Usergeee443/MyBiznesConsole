@@ -47,10 +47,23 @@ git push origin main
 | `TELEGRAM_OWNER_ID` | @userinfobot ID |
 | `TELEGRAM_WEBHOOK_SECRET` | ixtiyoriy maxfiy so'z |
 
+MySQL ishlatmoqchi bo'lsangiz (sizning server):
+
+| Key | Value |
+|-----|-------|
+| `MYSQL_HOST` | `146.103.126.207` |
+| `MYSQL_PORT` | `3306` |
+| `MYSQL_USER` | `phpmyadmin` |
+| `MYSQL_PASSWORD` | server paroli |
+| `MYSQL_DATABASE` | `mybiznesconsole` |
+| `MYSQL_SSL` | `false` (yoki hosting talabiga ko'ra `true`) |
+
 **Muhim:** `DATABASE_PATH` **qo'shmang** yoki o'chiring.  
 Agar oldin `/var/data/biznes.db` qo'ygan bo'lsangiz — **o'chirib tashlang**.
 
-DB avtomatik: `data/biznes.db` (loyiha papkasi ichida).
+**MySQL yoqilganda** (`MYSQL_*` to'ldirilsa): jadvallar avtomatik yaratiladi va seed ma'lumotlar yoziladi. `/api/health` da `database: "mysql"` ko'rinadi.
+
+**MySQL yoqilmaganida:** DB `data/biznes.db` (SQLite, Render da vaqtinchalik).
 
 ---
 
@@ -101,3 +114,8 @@ Build paketlari `dependencies` da — push qiling va qayta deploy.
 
 ### Ma'lumotlar yo'qoladi
 Bepul rejimda normal — redeploy yangi DB yaratadi. Doimiy saqlash uchun keyinroq disk qo'shing.
+
+### MySQL ulanishni tekshirish
+`/api/health` javobida:
+- `mysql: "ok"` bo'lsa ulanish bor
+- `database: "mysql"` ko'rinsa tizim MySQL ni ko'ryapti

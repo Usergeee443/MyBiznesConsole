@@ -13,16 +13,16 @@ import {
 
 export async function GET() {
   return NextResponse.json({
-    funds: getFundsOverview(),
-    allocations: getFundAllocations(),
-    deposits: getFundDeposits(),
+    funds: await getFundsOverview(),
+    allocations: await getFundAllocations(),
+    deposits: await getFundDeposits(),
   });
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
   if (body.action === "allocate") {
-    const results = allocateFundsForMonth(body.month);
+    const results = await allocateFundsForMonth(body.month);
     return NextResponse.json(results);
   }
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
@@ -34,7 +34,7 @@ export async function DELETE(request: Request) {
   if (!id) {
     return NextResponse.json({ error: "id kerak" }, { status: 400 });
   }
-  const deposit = deleteFundDeposit(id);
+  const deposit = await deleteFundDeposit(id);
   if (!deposit) {
     return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
   }

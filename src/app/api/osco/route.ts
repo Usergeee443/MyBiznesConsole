@@ -13,14 +13,14 @@ import {
 
 export async function GET() {
   return NextResponse.json({
-    stats: getArenaTopStats(),
-    analytics: getArenaTopAnalytics(),
+    stats: await getArenaTopStats(),
+    analytics: await getArenaTopAnalytics(),
   });
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const stat = addArenaTopStat(body);
+  const stat = await addArenaTopStat(body);
   return NextResponse.json(stat);
 }
 
@@ -30,7 +30,7 @@ export async function PUT(request: Request) {
   if (!id) {
     return NextResponse.json({ error: "id kerak" }, { status: 400 });
   }
-  const stat = updateArenaTopStat(id, data);
+  const stat = await updateArenaTopStat(id, data);
   if (!stat) {
     return NextResponse.json({ error: "Topilmadi yoki sana band" }, { status: 404 });
   }
@@ -43,7 +43,7 @@ export async function DELETE(request: Request) {
   if (!id) {
     return NextResponse.json({ error: "id kerak" }, { status: 400 });
   }
-  const stat = deleteArenaTopStat(id);
+  const stat = await deleteArenaTopStat(id);
   if (!stat) {
     return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
   }

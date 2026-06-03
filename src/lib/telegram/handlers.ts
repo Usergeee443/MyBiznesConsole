@@ -29,6 +29,8 @@ import {
   ARENATOP_COMMISSION,
 } from "../utils";
 import { initDatabase } from "../db/index";
+import { isMySqlConfigured } from "../mysql";
+import { initMySqlDatabase } from "../db/mysql-init";
 
 function isOwner(ctx: Context): boolean {
   const ownerId = process.env.TELEGRAM_OWNER_ID;
@@ -51,7 +53,11 @@ async function replyWithReplyKeyboard(ctx: Context, text: string) {
 }
 
 export function setupBotHandlers(bot: Bot) {
-  initDatabase();
+  if (isMySqlConfigured()) {
+    void initMySqlDatabase();
+  } else {
+    initDatabase();
+  }
 
   bot.use(async (ctx, next) => {
     if (!isOwner(ctx)) {
@@ -62,7 +68,7 @@ export function setupBotHandlers(bot: Bot) {
   });
 
   bot.command("start", async (ctx) => {
-    clearSession(ctx.chat!.id);
+    await clearSession(ctx.chat!.id);
     await replyWithReplyKeyboard(
       ctx,
       `Salom, <b>Nurmuxammad</b>! 👋\n\nMyBiznes Console botiga xush kelibsiz.`
@@ -71,38 +77,38 @@ export function setupBotHandlers(bot: Bot) {
   });
 
   bot.hears("📋 Menyu", async (ctx) => {
-    clearSession(ctx.chat!.id);
+    await clearSession(ctx.chat!.id);
     await replyMain(ctx, "📋 Bosh menyu:");
   });
 
   bot.hears("💰 Balans", async (ctx) => {
-    await replyMain(ctx, F.formatBalance());
+    await replyMain(ctx, await F.formatBalance());
   });
 
   bot.hears("📊 Holat", async (ctx) => {
-    await replyMain(ctx, F.formatDashboard());
+    await replyMain(ctx, await F.formatDashboard());
   });
 
   bot.hears("➖ Xarajat", async (ctx) => {
-    setSession(ctx.chat!.id, "expense_category", {});
+    await setSession(ctx.chat!.id, "expense_category", {});
     await ctx.reply("➖ Kategoriya tanlang:", {
       reply_markup: expenseCategoryKeyboard(),
     });
   });
 
   bot.command("menu", async (ctx) => {
-    clearSession(ctx.chat!.id);
+    await clearSession(ctx.chat!.id);
     await replyMain(ctx, "📋 Bosh menyu:");
   });
 
   bot.callbackQuery("cancel", async (ctx) => {
-    clearSession(ctx.chat!.id);
+    await clearSession(ctx.chat!.id);
     await ctx.answerCallbackQuery();
     await replyMain(ctx, "❌ Bekor qilindi.");
   });
 
   bot.callbackQuery("m:main", async (ctx) => {
-    clearSession(ctx.chat!.id);
+    await clearSession(ctx.chat!.id);
     await ctx.answerCallbackQuery();
     await ctx.editMessageText("📋 Bosh menyu:", {
       reply_markup: mainMenuKeyboard(),
@@ -113,17 +119,17 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("m:dashboard", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(F.formatDashboard(), {
+    await ctx.editMessageText(await F.formatDashboard(), {
       parse_mode: "HTML",
       reply_markup: backToMainKeyboard(),
     }).catch(() =>
-      replyMain(ctx, F.formatDashboard())
+      replyMain(ctx, await F.formatDashboard())
     );
   });
 
   bot.callbackQuery("m:balance", async (ctx) => {
     await ctx.answerCallbackQuery();
-    const text = F.formatBalance();
+    const text = await F.formatBalance();
     await ctx.editMessageText(text, {
       parse_mode: "HTML",
       reply_markup: backToMainKeyboard(),
@@ -142,7 +148,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("m:osco", async (ctx) => {
     await ctx.answerCallbackQuery();
-    const text = F.formatOsco();
+    const text = await F.formatOsco();
     await ctx.editMessageText(text, {
       parse_mode: "HTML",
       reply_markup: oscoKeyboard(),
@@ -161,7 +167,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("m:funds", async (ctx) => {
     await ctx.answerCallbackQuery();
-    const text = F.formatFunds();
+    const text = await F.formatFunds();
     await ctx.editMessageText(text, {
       parse_mode: "HTML",
       reply_markup: fundsKeyboard(),
@@ -170,7 +176,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("m:quickexpense", async (ctx) => {
     await ctx.answerCallbackQuery();
-    setSession(ctx.chat!.id, "expense_category", {});
+    await setSession(ctx.chat!.id, "expense_category", {});
     await ctx.editMessageText("➖ Xarajat kategoriyasini tanlang:", {
       reply_markup: expenseCategoryKeyboard(),
     }).catch(() =>
@@ -181,7 +187,7 @@ export function setupBotHandlers(bot: Bot) {
   // Nur&Garden
   bot.callbackQuery("ng:products", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(F.formatProducts(), {
+    await ctx.editMessageText(await F.formatProducts(), {
       parse_mode: "HTML",
       reply_markup: nurGardenKeyboard(),
     }).catch(() => {});
@@ -189,7 +195,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("ng:analytics", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(F.formatNurGardenAnalytics(), {
+    await ctx.editMessageText(await F.formatNurGardenAnalytics(), {
       parse_mode: "HTML",
       reply_markup: nurGardenKeyboard(),
     }).catch(() => {});
@@ -197,7 +203,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("ng:sales", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(F.formatSales(), {
+    await ctx.editMessageText(await F.formatSales(), {
       parse_mode: "HTML",
       reply_markup: nurGardenKeyboard(),
     }).catch(() => {});
@@ -205,7 +211,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("ng:debts", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(F.formatDebts(), {
+    await ctx.editMessageText(await F.formatDebts(), {
       parse_mode: "HTML",
       reply_markup: nurGardenKeyboard(),
     }).catch(() => {});
@@ -213,7 +219,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("ng:costing", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(F.formatCostingSummary(), {
+    await ctx.editMessageText(await F.formatCostingSummary(), {
       parse_mode: "HTML",
       reply_markup: nurGardenKeyboard(),
     }).catch(() => {});
@@ -222,7 +228,7 @@ export function setupBotHandlers(bot: Bot) {
   // Osco
   bot.callbackQuery("os:history", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(F.formatArenaHistory(), {
+    await ctx.editMessageText(await F.formatArenaHistory(), {
       parse_mode: "HTML",
       reply_markup: oscoKeyboard(),
     }).catch(() => {});
@@ -230,7 +236,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("os:addstat", async (ctx) => {
     await ctx.answerCallbackQuery();
-    setSession(ctx.chat!.id, "arena_stadiums_added", { date: todayISO() });
+    await setSession(ctx.chat!.id, "arena_stadiums_added", { date: todayISO() });
     await ctx.editMessageText(
       `📅 ArenaTop statistika (${todayISO()})\n\n1/5 — Bugun qo'shilgan stadionlar soni:`,
       { reply_markup: arenaStatSkipKeyboard() }
@@ -242,7 +248,7 @@ export function setupBotHandlers(bot: Bot) {
   bot.callbackQuery("arena:skip", async (ctx) => {
     await ctx.answerCallbackQuery();
     const chatId = ctx.chat!.id;
-    const { step, data } = getSession(chatId);
+    const { step, data } = await getSession(chatId);
     if (!step?.startsWith("arena_")) return;
 
     const field = step.replace("arena_", "");
@@ -260,7 +266,7 @@ export function setupBotHandlers(bot: Bot) {
   // Finance
   bot.callbackQuery("fin:expense", async (ctx) => {
     await ctx.answerCallbackQuery();
-    setSession(ctx.chat!.id, "expense_category", {});
+    await setSession(ctx.chat!.id, "expense_category", {});
     await ctx.editMessageText("➖ Kategoriya tanlang:", {
       reply_markup: expenseCategoryKeyboard(),
     }).catch(() => {});
@@ -268,7 +274,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("fin:income", async (ctx) => {
     await ctx.answerCallbackQuery();
-    setSession(ctx.chat!.id, "income_account", {});
+    await setSession(ctx.chat!.id, "income_account", {});
     await ctx.editMessageText("➕ Daromad qaysi hisobga?", {
       reply_markup: incomeAccountKeyboard(),
     }).catch(() => {});
@@ -276,7 +282,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("fin:txs", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(F.formatTransactions(), {
+    await ctx.editMessageText(await F.formatTransactions(), {
       parse_mode: "HTML",
       reply_markup: financeKeyboard(),
     }).catch(() => {});
@@ -288,7 +294,7 @@ export function setupBotHandlers(bot: Bot) {
     const label =
       PERSONAL_EXPENSE_CATEGORIES.find((c) => c.id === category)?.label ??
       category;
-    setSession(ctx.chat!.id, "expense_amount", { category, label });
+    await setSession(ctx.chat!.id, "expense_amount", { category, label });
     await ctx.editMessageText(
       `➖ <b>${label}</b>\n\nSummani yozing (faqat raqam):\nMasalan: 25000`,
       { parse_mode: "HTML" }
@@ -298,7 +304,7 @@ export function setupBotHandlers(bot: Bot) {
   bot.callbackQuery(/^inc:(.+)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     const accountSlug = ctx.match![1];
-    setSession(ctx.chat!.id, "income_amount", { accountSlug });
+    await setSession(ctx.chat!.id, "income_amount", { accountSlug });
     await ctx.editMessageText(
       `➕ Daromad summasini yozing (faqat raqam):`
     ).catch(() => {});
@@ -307,7 +313,7 @@ export function setupBotHandlers(bot: Bot) {
   // Funds
   bot.callbackQuery("fd:allocate", async (ctx) => {
     await ctx.answerCallbackQuery();
-    const results = allocateFundsForMonth(currentMonth());
+    const results = await allocateFundsForMonth(currentMonth());
     await ctx.editMessageText(
       `✅ ${currentMonth()} uchun ${results.length} ta ajratish yaratildi.`,
       { reply_markup: fundsKeyboard() }
@@ -316,7 +322,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.callbackQuery("fd:deposits", async (ctx) => {
     await ctx.answerCallbackQuery();
-    const deposits = getFundDeposits().slice(0, 10);
+    const deposits = (await getFundDeposits()).slice(0, 10);
     if (deposits.length === 0) {
       await ctx.editMessageText("Ajratishlar yo'q.", {
         reply_markup: fundsKeyboard(),
@@ -337,7 +343,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.hears(/^\/del_fund_(\d+)$/, async (ctx) => {
     const id = Number(ctx.match![1]);
-    const deleted = deleteFundDeposit(id);
+    const deleted = await deleteFundDeposit(id);
     if (deleted) {
       await ctx.reply(`✅ Ajratish #${id} o'chirildi.`, {
         reply_markup: fundsKeyboard(),
@@ -349,7 +355,7 @@ export function setupBotHandlers(bot: Bot) {
 
   bot.hears(/^\/del_arena_(\d+)$/, async (ctx) => {
     const id = Number(ctx.match![1]);
-    const deleted = deleteArenaTopStat(id);
+    const deleted = await deleteArenaTopStat(id);
     if (deleted) {
       await ctx.reply(`✅ Statistika #${id} o'chirildi.`);
     } else {
@@ -362,7 +368,7 @@ export function setupBotHandlers(bot: Bot) {
     if (ctx.message.text.startsWith("/")) return;
 
     const chatId = ctx.chat.id;
-    const { step, data } = getSession(chatId);
+    const { step, data } = await getSession(chatId);
     const text = ctx.message.text.trim().replace(/\s/g, "");
     const amount = Number(text.replace(/[^\d.]/g, ""));
 
@@ -376,14 +382,14 @@ export function setupBotHandlers(bot: Bot) {
         await ctx.reply("❌ To'g'ri summa kiriting. Masalan: 15000");
         return;
       }
-      addTransaction({
+      await addTransaction({
         accountSlug: "personal",
         type: "expense",
         amount,
         category: data.category as string,
         description: data.label as string,
       });
-      clearSession(chatId);
+      await clearSession(chatId);
       await replyMain(
         ctx,
         `✅ Xarajat saqlandi!\n➖ ${data.label}: <b>${formatMoney(amount)}</b>`
@@ -396,14 +402,14 @@ export function setupBotHandlers(bot: Bot) {
         await ctx.reply("❌ To'g'ri summa kiriting.");
         return;
       }
-      addTransaction({
+      await addTransaction({
         accountSlug: data.accountSlug as string,
         type: "income",
         amount,
         category: "other",
         description: "Telegram orqali",
       });
-      clearSession(chatId);
+      await clearSession(chatId);
       await replyMain(ctx, `✅ Daromad saqlandi: <b>${formatMoney(amount)}</b>`);
       return;
     }
@@ -453,13 +459,13 @@ async function advanceArenaStep(
 
   const current = steps.find((s) => s.field === completedField);
   if (current) {
-    setSession(chatId, current.next, data);
+    await setSession(chatId, current.next, data);
     await ctx.reply(current.question, { reply_markup: arenaStatSkipKeyboard() });
     return;
   }
 
   if (completedField === "bookings") {
-    const stat = addArenaTopStat({
+    const stat = await addArenaTopStat({
       date: (data.date as string) ?? todayISO(),
       stadiumsAdded: Number(data.stadiums_added ?? 0),
       totalStadiums: Number(data.total_stadiums ?? 0),
@@ -467,7 +473,7 @@ async function advanceArenaStep(
       totalUsers: Number(data.total_users ?? 0),
       bookings: Number(data.bookings ?? 0),
     });
-    clearSession(chatId);
+    await clearSession(chatId);
     const commission = Number(data.bookings ?? 0) * ARENATOP_COMMISSION;
     await replyMain(
       ctx,
