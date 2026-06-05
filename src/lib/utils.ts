@@ -55,3 +55,19 @@ export const CUSTOMER_TYPES = {
 } as const;
 
 export const ARENATOP_COMMISSION = 2890;
+
+export const OPENING_BALANCE_CATEGORY = "opening_balance";
+export const OPENING_FUND_SOURCE = "opening";
+
+export type ImportType =
+  | "transactions"
+  | "sales"
+  | "customers"
+  | "arenatop"
+  | "products";
+
+export type ImportResult = {
+  success: number;
+  errors: { row: number; message: string }[];
+  preview?: Record<string, unknown>[];
+};

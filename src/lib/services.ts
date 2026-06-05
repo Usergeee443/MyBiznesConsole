@@ -59,3 +59,6 @@ export const allocateFundsForMonth = wrap("allocateFundsForMonth");
 export const getFundsOverview = wrap("getFundsOverview");
 export const getMonthlyExpenses = wrap("getMonthlyExpenses");
 export const getDashboardStats = wrap("getDashboardStats");
+export const getSettingsOverview = wrap("getSettingsOverview");
+export const setAccountOpeningBalance = wrap("setAccountOpeningBalance");
+export const setFundOpeningBalance = wrap("setFundOpeningBalance");

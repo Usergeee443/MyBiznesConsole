@@ -4,7 +4,12 @@ import {
   customers, sales, saleItems, debts, arenaTopStats, funds, fundAllocations, fundDeposits,
 } from "./db/mysql-schema";
 import { eq, desc, sql, and, gte, lte, sum } from "drizzle-orm";
-import { ARENATOP_COMMISSION, currentMonth } from "./utils";
+import {
+  ARENATOP_COMMISSION,
+  currentMonth,
+  OPENING_BALANCE_CATEGORY,
+  OPENING_FUND_SOURCE,
+} from "./utils";
 
 export async function getAccountBalance(slug: string) {
   const db = await getMysqlDb();
@@ -292,6 +297,8 @@ export async function createSale(data: {
   paid: number;
   notes?: string;
   date?: string;
+  skipStock?: boolean;
+  skipIncome?: boolean;
 }) {
   const db = await getMysqlDb();
   const date = data.date ?? new Date().toISOString().split("T")[0];
@@ -322,18 +329,20 @@ export async function createSale(data: {
         total: item.quantity * item.price,
       });
 
-    const product = await one(
-      db.select().from(products).where(eq(products.id, item.productId))
-    );
-    if (product) {
-      await db.update(products)
-        .set({ stock: product.stock - item.quantity, updatedAt: now })
-        .where(eq(products.id, item.productId))
-        ;
+    if (!data.skipStock) {
+      const product = await one(
+        db.select().from(products).where(eq(products.id, item.productId))
+      );
+      if (product) {
+        await db
+          .update(products)
+          .set({ stock: product.stock - item.quantity, updatedAt: now })
+          .where(eq(products.id, item.productId));
+      }
     }
   }
 
-  if (data.paid > 0) {
+  if (data.paid > 0 && !data.skipIncome) {
     await addTransaction({
       accountSlug: "nur-garden",
       type: "income",
@@ -485,10 +494,11 @@ export async function addArenaTopStat(data: {
   totalUsers: number;
   bookings: number;
   notes?: string;
+  skipIncome?: boolean;
 }) {
   const db = await getMysqlDb();
   const now = new Date().toISOString();
-  const commission = data.bookings * ARENATOP_COMMISSION;
+  const commission = data.skipIncome ? 0 : data.bookings * ARENATOP_COMMISSION;
 
   const existing = await one(
     db
@@ -859,4 +869,154 @@ export async function getDashboardStats() {
     recentTransactions: recentTx,
     monthExpenses: totalExpenses,
   };
+}
+
+async function getOpeningBalanceTx(slug: string) {
+  const db = await getMysqlDb();
+  return await one(
+    db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.accountSlug, slug),
+          eq(transactions.category, OPENING_BALANCE_CATEGORY)
+        )
+      )
+  );
+}
+
+async function getOpeningFundDeposit(slug: string) {
+  const db = await getMysqlDb();
+  return await one(
+    db
+      .select()
+      .from(fundDeposits)
+      .where(
+        and(
+          eq(fundDeposits.fundSlug, slug),
+          eq(fundDeposits.businessSlug, OPENING_FUND_SOURCE)
+        )
+      )
+  );
+}
+
+export async function getSettingsOverview() {
+  const accs = (await getAllAccounts()).filter(
+    (a) => a.type !== "group" && a.isActive
+  );
+  const fundsList = await getFunds();
+
+  const accounts = await Promise.all(
+    accs.map(async (a) => {
+      const opening = await getOpeningBalanceTx(a.slug);
+      return {
+        slug: a.slug,
+        name: a.name,
+        type: a.type,
+        color: a.color,
+        balance: await getAccountBalance(a.slug),
+        openingAmount: opening?.amount ?? 0,
+        openingDate: opening?.date ?? null,
+      };
+    })
+  );
+
+  const fundsResult = await Promise.all(
+    fundsList.map(async (f) => {
+      const opening = await getOpeningFundDeposit(f.slug);
+      return {
+        slug: f.slug,
+        name: f.name,
+        color: f.color,
+        balance: await getFundBalance(f.slug),
+        openingAmount: opening?.amount ?? 0,
+        openingDate: opening?.date ?? null,
+      };
+    })
+  );
+
+  return { accounts, funds: fundsResult };
+}
+
+export async function setAccountOpeningBalance(
+  slug: string,
+  amount: number,
+  date?: string
+) {
+  const d = date ?? new Date().toISOString().split("T")[0];
+  const existing = await getOpeningBalanceTx(slug);
+
+  if (amount <= 0) {
+    if (existing) await deleteTransaction(existing.id);
+    return null;
+  }
+
+  if (existing) {
+    return await updateTransaction(existing.id, {
+      amount,
+      date: d,
+      type: "income",
+      category: OPENING_BALANCE_CATEGORY,
+      description: "Saytdan oldingi balans",
+    });
+  }
+
+  return await addTransaction({
+    accountSlug: slug,
+    type: "income",
+    amount,
+    category: OPENING_BALANCE_CATEGORY,
+    description: "Saytdan oldingi balans",
+    date: d,
+  });
+}
+
+export async function setFundOpeningBalance(
+  slug: string,
+  amount: number,
+  date?: string
+) {
+  const db = await getMysqlDb();
+  const d = date ?? new Date().toISOString().split("T")[0];
+  const month = d.slice(0, 7);
+  const existing = await getOpeningFundDeposit(slug);
+  const now = new Date().toISOString();
+
+  if (amount <= 0) {
+    if (existing) {
+      await db.delete(fundDeposits).where(eq(fundDeposits.id, existing.id));
+    }
+    return null;
+  }
+
+  if (existing) {
+    await db
+      .update(fundDeposits)
+      .set({ amount, date: d, month })
+      .where(eq(fundDeposits.id, existing.id));
+    return await one(
+      db.select().from(fundDeposits).where(eq(fundDeposits.id, existing.id))
+    );
+  }
+
+  await db.insert(fundDeposits).values({
+    fundSlug: slug,
+    amount,
+    businessSlug: OPENING_FUND_SOURCE,
+    month,
+    date: d,
+    createdAt: now,
+  });
+  return await one(
+    db
+      .select()
+      .from(fundDeposits)
+      .where(
+        and(
+          eq(fundDeposits.fundSlug, slug),
+          eq(fundDeposits.businessSlug, OPENING_FUND_SOURCE)
+        )
+      )
+  );
 }

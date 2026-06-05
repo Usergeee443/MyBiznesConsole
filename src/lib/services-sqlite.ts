@@ -15,7 +15,12 @@ import {
   fundDeposits,
 } from "./db/schema";
 import { eq, desc, sql, and, gte, lte, sum } from "drizzle-orm";
-import { ARENATOP_COMMISSION, currentMonth } from "./utils";
+import {
+  ARENATOP_COMMISSION,
+  currentMonth,
+  OPENING_BALANCE_CATEGORY,
+  OPENING_FUND_SOURCE,
+} from "./utils";
 
 export function getAccountBalance(slug: string): number {
   const income = db
@@ -289,6 +294,8 @@ export function createSale(data: {
   paid: number;
   notes?: string;
   date?: string;
+  skipStock?: boolean;
+  skipIncome?: boolean;
 }) {
   const date = data.date ?? new Date().toISOString().split("T")[0];
   const total = data.items.reduce((s, i) => s + i.quantity * i.price, 0);
@@ -319,16 +326,22 @@ export function createSale(data: {
       })
       .run();
 
-    const product = db.select().from(products).where(eq(products.id, item.productId)).get();
-    if (product) {
-      db.update(products)
-        .set({ stock: product.stock - item.quantity, updatedAt: now })
+    if (!data.skipStock) {
+      const product = db
+        .select()
+        .from(products)
         .where(eq(products.id, item.productId))
-        .run();
+        .get();
+      if (product) {
+        db.update(products)
+          .set({ stock: product.stock - item.quantity, updatedAt: now })
+          .where(eq(products.id, item.productId))
+          .run();
+      }
     }
   }
 
-  if (data.paid > 0) {
+  if (data.paid > 0 && !data.skipIncome) {
     addTransaction({
       accountSlug: "nur-garden",
       type: "income",
@@ -477,9 +490,10 @@ export function addArenaTopStat(data: {
   totalUsers: number;
   bookings: number;
   notes?: string;
+  skipIncome?: boolean;
 }) {
   const now = new Date().toISOString();
-  const commission = data.bookings * ARENATOP_COMMISSION;
+  const commission = data.skipIncome ? 0 : data.bookings * ARENATOP_COMMISSION;
 
   const existing = db
     .select()
@@ -828,4 +842,139 @@ export function getDashboardStats() {
     recentTransactions: recentTx,
     monthExpenses: totalExpenses,
   };
+}
+
+function getOpeningBalanceTx(slug: string) {
+  return db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.accountSlug, slug),
+        eq(transactions.category, OPENING_BALANCE_CATEGORY)
+      )
+    )
+    .get();
+}
+
+function getOpeningFundDeposit(slug: string) {
+  return db
+    .select()
+    .from(fundDeposits)
+    .where(
+      and(
+        eq(fundDeposits.fundSlug, slug),
+        eq(fundDeposits.businessSlug, OPENING_FUND_SOURCE)
+      )
+    )
+    .get();
+}
+
+export function getSettingsOverview() {
+  const accs = getAllAccounts().filter(
+    (a) => a.type !== "group" && a.isActive
+  );
+  const fundsList = getFunds();
+
+  return {
+    accounts: accs.map((a) => {
+      const opening = getOpeningBalanceTx(a.slug);
+      return {
+        slug: a.slug,
+        name: a.name,
+        type: a.type,
+        color: a.color,
+        balance: getAccountBalance(a.slug),
+        openingAmount: opening?.amount ?? 0,
+        openingDate: opening?.date ?? null,
+      };
+    }),
+    funds: fundsList.map((f) => {
+      const opening = getOpeningFundDeposit(f.slug);
+      return {
+        slug: f.slug,
+        name: f.name,
+        color: f.color,
+        balance: getFundBalance(f.slug),
+        openingAmount: opening?.amount ?? 0,
+        openingDate: opening?.date ?? null,
+      };
+    }),
+  };
+}
+
+export function setAccountOpeningBalance(
+  slug: string,
+  amount: number,
+  date?: string
+) {
+  const d = date ?? new Date().toISOString().split("T")[0];
+  const existing = getOpeningBalanceTx(slug);
+
+  if (amount <= 0) {
+    if (existing) deleteTransaction(existing.id);
+    return null;
+  }
+
+  if (existing) {
+    return updateTransaction(existing.id, {
+      amount,
+      date: d,
+      type: "income",
+      category: OPENING_BALANCE_CATEGORY,
+      description: "Saytdan oldingi balans",
+    });
+  }
+
+  return addTransaction({
+    accountSlug: slug,
+    type: "income",
+    amount,
+    category: OPENING_BALANCE_CATEGORY,
+    description: "Saytdan oldingi balans",
+    date: d,
+  });
+}
+
+export function setFundOpeningBalance(
+  slug: string,
+  amount: number,
+  date?: string
+) {
+  const d = date ?? new Date().toISOString().split("T")[0];
+  const month = d.slice(0, 7);
+  const existing = getOpeningFundDeposit(slug);
+  const now = new Date().toISOString();
+
+  if (amount <= 0) {
+    if (existing) {
+      db.delete(fundDeposits).where(eq(fundDeposits.id, existing.id)).run();
+    }
+    return null;
+  }
+
+  if (existing) {
+    db.update(fundDeposits)
+      .set({ amount, date: d, month })
+      .where(eq(fundDeposits.id, existing.id))
+      .run();
+    return db
+      .select()
+      .from(fundDeposits)
+      .where(eq(fundDeposits.id, existing.id))
+      .get();
+  }
+
+  return db
+    .insert(fundDeposits)
+    .values({
+      fundSlug: slug,
+      amount,
+      businessSlug: OPENING_FUND_SOURCE,
+      month,
+      date: d,
+      createdAt: now,
+    })
+    .returning()
+    .get();
 }

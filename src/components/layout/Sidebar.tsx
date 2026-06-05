@@ -8,6 +8,7 @@ import {
   Building2,
   Wallet,
   PiggyBank,
+  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/osco", label: "Osco Holding", icon: Building2 },
   { href: "/finance", label: "Moliya", icon: Wallet },
   { href: "/funds", label: "Jamg'armalar", icon: PiggyBank },
+  { href: "/settings", label: "Sozlamalar", icon: Settings },
 ];
 
 export function Sidebar() {

@@ -34,7 +34,8 @@
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10",
